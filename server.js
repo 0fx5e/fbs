@@ -16,11 +16,14 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 app.post('/api/session/start', async (req, res) => {
     try {
         const { authData, postLink, amount, delay } = req.body;
 
-        // Input validation
         if (!authData || !postLink || !amount || !delay) {
             return res.status(400).json({ error: 'Missing required fields.' });
         }
@@ -39,10 +42,7 @@ app.post('/api/session/start', async (req, res) => {
         };
 
         activeSessions.set(sessionId, newSession);
-
-        // Start the session processing
         processSession(sessionId);
-
         res.json({ sessionId, message: 'Session started successfully' });
     } catch (error) {
         console.error('Server error:', error);
