@@ -274,7 +274,7 @@
             newLogsIndicator.style.display = 'inline';
         }
 
-        async function startNewSession() {
+       async function startNewSession() {
             const authData = document.getElementById('authData').value.trim();
             const postLink = document.getElementById('postLink').value.trim();
             const amount = parseInt(document.getElementById('amount').value.trim());
@@ -328,26 +328,6 @@
 
         function updateSessionList() {
             sessionList.innerHTML = '';
-            sessions.forEach(session => {
-                const sessionItem = document.createElement('div');
-                sessionItem.className = 'session-item';
-                sessionItem.innerHTML = `
-                    <h3>Session ${session.id}</h3>
-                    <p>Status: ${session.status}</p>
-                    <p>Progress: ${session.totalAttempts}/${session.amount}</p>
-                    <p>Success Rate: ${((session.successRates.filter(Boolean).length / session.totalAttempts) * 100).toFixed(2)}%</p>
-                    <div class="session-controls">
-                        <button class="btn btn-primary start-session" data-id="${session.id}" ${session.status === 'running' ? 'disabled' : ''}>Start</button>
-                        <button class="btn btn-primary pause-session" data-id="${session.id}" ${session.status !== 'running' ? 'disabled' : ''}>Pause</button>
-                        <button class="btn btn-primary stop-session" data-id="${session.id}" ${session.status === 'stopped' ? 'disabled' : ''}>Stop</button>
-                    </div>
-                `;
-                sessionList.appendChild(sessionItem);
-            });
-
-            document.querySelectorAll('.start-session').forEach(btn => btn.addEventListener('click', () => startSession(btn.dataset.id)));
-            document.querySelectorAll('.pause-session').forEach(btn => btn.addEventListener('click', () => pauseSession(btn.dataset.id)));
-            document.querySelectorAll('.stop-session').forEach(btn => btn.addEventListener('click', () => stopSession(btn.dataset.id)));
         }
 
         function updateActiveSessionsList() {
@@ -457,7 +437,7 @@
 
         async function stopSession(sessionId) {
             try {
-                const response = await fetch('api/session/${sessionId}/stop', {
+                const response = await fetch(`api/session/${sessionId}/stop`, {
                     method: 'POST',
                 });
 
@@ -639,4 +619,4 @@
         }, 5000); // Update every 5 seconds
     </script>
 </body>
-</html>
+    </html>
