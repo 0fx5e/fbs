@@ -290,51 +290,13 @@
                 return;
             }
 
-            const cookieCheckResponse = await fetch('/api/cookie/check', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ cookie: authData }),
-            });
-
-            if (!cookieCheckResponse.ok) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Invalid cookie. Please check your cookie and try again.',
-                    icon: 'error',
-                    confirmButtonColor: '#ff1744',
-                });
-                return;
-            }
-
-            const tokenResponse = await fetch('/api/token/get', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ cookie: authData }),
-            });
-
-            if (!tokenResponse.ok) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to retrieve token . Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: '#ff1744',
-                });
-                return;
-            }
-
-            const { token } = await tokenResponse.json();
-
             try {
                 const response = await fetch(`api/session/start`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ authData: token, postLink, amount, delay }),
+                    body: JSON.stringify({ authData, postLink, amount, delay }),
                 });
 
                 if (!response.ok) {
@@ -677,4 +639,4 @@
         }, 5000); // Update every 5 seconds
     </script>
 </body>
-  </html>
+</html>
