@@ -1,3 +1,4 @@
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
@@ -9,13 +10,93 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// In-memory storage for active sessions
 const activeSessions = new Map();
 
 // Serve index.html from the same directory as the server file
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// New endpoint to check if the cookie is alive
+app.post('/api/cookie/check', async (req, res) => {
+    const { cookie } = req.body;
+    if (!cookie) {
+        return res.status(400).json({ error: 'Cookie is required.' });
+    }
+
+    const isAlive = await isCookieAlive(cookie);
+    res.json({ isAlive });
+});
+
+// New endpoint to get the Facebook token
+app.post('/api/token/get', async (req, res) => {
+    const { cookie } = req.body;
+    if (!cookie) {
+        return res.status(400).json({ error: 'Cookie is required.' });
+    }
+
+    const token = await getFacebookToken(cookie);
+    if (token) {
+        res.json({ token });
+    } else {
+        res.status(500).json({ error: 'Failed to get token.' });
+    }
+});
+
+// Existing session management endpoints...
+
+async function isCookieAlive(cookie) {
+    const headers = {
+        'authority': 'business.facebook.com',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'accept-language': 'vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5',
+        'cache-control': 'max-age=0',
+        'cookie': cookie,
+        'referer': 'https://www.facebook.com/',
+        'sec-ch-ua': '".Not/A)Brand";v="99", "Google Chrome";v="103", "Chromium";v="103"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Linux"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+    };
+    return fetch('https://business.facebook.com/content_management', { headers })
+        .then(response => response.ok)
+        .catch(() => {
+            console.error("Error checking if the cookie is alive");
+            return false;
+        });
+}
+
+async function getFacebookToken(cookie) {
+    const headers = {
+        'authority': 'business.facebook.com',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'accept-language': 'vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5',
+        'cache-control': 'max-age=0',
+        'cookie': cookie,
+        'referer': 'https://www.facebook.com/',
+        'sec-ch-ua': '".Not/A)Brand";v="99", "Google Chrome";v="103", "Chromium";v="103"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Linux"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+    };
+    try {
+        const home_business = await fetch('https://business.facebook.com/content_management', { headers });
+        const text = await home_business.text();
+        const token = text.split('EAAG')[1].split('","')[0];
+        return `${cookie}|EAAG${token}`;
+    } catch (error) {
+        console.error('Error fetching Facebook token:', error);
+        return null;
+    }
+}
 
 app.post('/api/session/start', async (req, res) => {
     try {
