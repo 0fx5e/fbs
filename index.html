@@ -16,12 +16,11 @@
             overflow-x: hidden;
         }
         .container {
-            display: flex;
+        	display: flex;
             flex-direction: column;
             justify-content: center;
-            min-height: 100vh;
+            height: 100vh;
             width: 100vw;
-            padding-bottom: 60px; /* Space for bottom navigation */
         }
         h1 {
             text-align: center;
@@ -40,7 +39,7 @@
             outline: none !important;
             box-shadow: none !important;
         }
-        #authData {
+        #cookie {
             height: 150px;
             font-size: 1em;
             background-color: #252525;
@@ -54,29 +53,13 @@
         .btn-primary:hover {
             background-color: #ff4d67;
         }
-        .nav-icons {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-around;
-            background-color: #1a1a1a;
-            padding: 10px 0;
-        }
         .nav-icon {
+            position: fixed;
+            top: 20px;
+            right: 20px;
             font-size: 24px;
             color: #ff1744;
             text-decoration: none;
-            position: relative;
-            text-align: center;
-        }
-        .nav-icon i {
-            display: block;
-            margin-bottom: 5px;
-        }
-        .nav-icon span {
-            font-size: 12px;
         }
         .nav-icon .fa-circle {
             position: absolute;
@@ -93,79 +76,6 @@
             color: #ff1744;
             text-decoration: none;
         }
-        #statisticsPage, #logsPage,  #settingsPage, #sessionsPage {
-            display: none;
-        }
-        #statisticsPage .container, #logsPage .container {
-            max-width: 800px;
-        }
-        #logContainer {
-            background-color: #1a1a1a;
-            border: 2px solid #ff1744;
-            color: #ff1744;
-            height: 400px;
-            overflow-y: auto;
-            padding: 10px;
-            margin-top: 20px;
-            font-family: 'Orbitron', sans-serif;
-        }
-        #lineChart, #successRateChart {
-            margin-top: 20px;
-        }
-        #sessionList {
-            margin-top: 20px;
-        }
-        .session-item {
-            background-color: #1a1a1a;
-            border: 1px solid #ff1744;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 10px;
-            position: relative;
-            padding-right: 40px;
-        }
-        .session-item h3 {
-            margin-top: 0;
-        }
-        .session-controls {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-        }
-        #activeSessionsList {
-            margin-top: 20px;
-        }
-        .session-menu {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-        }
-        .session-menu-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background-color: #1a1a1a;
-            min-width: 120px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
-        .session-menu-content button {
-            color: #ff1744;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            background-color: transparent;
-            border: none;
-            width: 100%;
-            text-align: left;
-        }
-        .session-menu-content button:hover {
-            background-color: #252525;
-        }
-        .music-controls {
-            margin-top: 20px;
-        }
     </style>
 </head>
 <body>
@@ -174,449 +84,93 @@
             <h1>Zyte FS</h1>
             <form id="shareForm">
                 <div class="mb-3">
-                    <label for="authData" class="form-label">Cookie or Token</label>
-                    <textarea class="form-control" id="authData" rows="2"></textarea>
+                    <label for="cookie" class="form-label">Cookies</label>
+                    <textarea class="form-control" id="cookie" rows="2" ></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="postLink" class="form-label">Post Link</label>
-                    <input type="url" class="form-control" id="postLink" required>
+                    <input type="url" class="form-control" id="postLink" >
                 </div>
                 <div class="mb-3">
                     <label for="amount" class="form-label">Amount</label>
-                    <input type="number" class="form-control" id="amount" min="1" required>
+                    <input type="number" class="form-control" id="amount" min="1" >
                 </div>
                 <div class="mb-3">
-                    <label for="delay" class="form-label">Delay (in seconds)</label>
-                    <input type="number" class="form-control" id="delay" min="1" required>
+                    <label for="interval" class="form-label">Interval</label>
+                    <input type="number" class="form-control" id="interval" min="1" >
                 </div>
-                <button type="button" id="startNewSession" class="btn btn-primary w-100">Start New Session</button>
+                <button type="submit" class="btn btn-primary w-100">Start Sharing</button>
             </form>
-            <div id="sessionList"></div>
         </div>
-    </div>
-
-    <div id="sessionsPage">
-        <div class="container">
-            <h1>Active Sessions</h1>
-            <div id="activeSessionsList"></div>
-        </div>
-    </div>
-
-    <div id="statisticsPage">
-        <div class="container">
-            <h1>Stats</h1>
-            <canvas id="successRateChart"></canvas>
-            <canvas id="lineChart"></canvas>
-            <div id="sessionInfo"></div>
-        </div>
-    </div>
-
-    <div id="logsPage">
-        <div class="container">
-            <h1>Logs</h1>
-            <div id="logContainer"></div>
-        </div>
-    </div>
-
-    <div class="nav-icons">
-        <a href="#" class="nav-icon" id="homeLink">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
-        </a>
-        <a href="#" class="nav-icon" id="statsLink">
-            <i class="fas fa-chart-line"></i>
-            <span>Stats</span>
-            <i class="fas fa-circle" id="newDataIndicator" style="display: none;"></i>
-        </a>
-        <a href="#" class="nav-icon" id="sessionsLink">
-            <i class="fas fa-tasks"></i>
-            <span>Sessions</span>
-        </a>
-        <a href="#" class="nav-icon" id="logsLink">
-            <i class="fas fa-list"></i>
-            <span>Logs</span>
-            <i class="fas fa-circle" id="newLogsIndicator" style="display: none;"></i>
-        </a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
     <script>
         const mainPage = document.getElementById('mainPage');
-        const statisticsPage = document.getElementById('statisticsPage');
-        const logsPage = document.getElementById('logsPage');
-        const loginPage = document.getElementById('loginPage');
-        const settingsPage = document.getElementById('settingsPage');
-        const sessionsPage = document.getElementById('sessionsPage');
-        const statsLink = document.getElementById('statsLink');
-        const logsLink = document.getElementById('logsLink');
-        const newDataIndicator = document.getElementById('newDataIndicator');
-        const newLogsIndicator = document.getElementById('newLogsIndicator');
-        const logContainer = document.getElementById('logContainer');
-        const sessionList = document.getElementById('sessionList');
-        const activeSessionsList = document.getElementById('activeSessionsList');
 
-        let currentUser  = null;
-        let sessions = [];
+        document.getElementById('shareForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
 
-        function showPage(pageId) {
-            document.querySelectorAll('div[id$="Page"]').forEach(page => page.style.display = 'none');
-            document.getElementById(pageId).style.display = 'block';
-       }
-
-        function addLog(message) {
-            const now = new Date();
-            const timestamp = now.toLocaleTimeString();
-            const logEntry = `${timestamp} | ${message}`;
-            logContainer.innerHTML += logEntry + '<br>';
-            logContainer.scrollTop = logContainer.scrollHeight;
-            newLogsIndicator.style.display = 'inline';
-        }
-
-       async function startNewSession() {
-            const authData = document.getElementById('authData').value.trim();
+            const cookie = document.getElementById('cookie').value.trim();
             const postLink = document.getElementById('postLink').value.trim();
-            const amount = parseInt(document.getElementById('amount').value.trim());
-            const delay = parseInt(document.getElementById('delay').value.trim());
+            const amount = parseInt(document.getElementById('amount').value.trim(), 10);
+            const interval = parseInt(document.getElementById('interval').value.trim(), 10);
 
-            if (!authData || !postLink || isNaN(amount) || isNaN(delay)) {
+            if (!cookie || !postLink || !amount || !interval) {
                 Swal.fire({
                     title: 'Error!',
-                    text: 'Please fill in all fields correctly.',
+                    text: 'Please fill in all fields.',
                     icon: 'error',
                     confirmButtonColor: '#ff1744',
                 });
                 return;
             }
+            
+            const processingMessages = [
+			  "Sit tight while we process your request.",
+			  "Please wait, we're working on it.",
+			  "Processing... this might take a moment.",
+			  "We're on it! Please be patient.",
+			  "Your request is being processed.",
+			  "Processing your request... please stand by."
+			];
+			
+			const randomMsg = processingMessages[Math.floor(Math.random() * processingMessages.length)];
 
+            Swal.fire({
+                title: 'FS Started',
+                text: randomMsg,
+                icon: 'info',
+                confirmButtonColor: '#ff1744',
+            });
+
+            const results = await startSharing({ cookie, postLink, amount, interval });
+            Swal.fire({
+                title: 'FS Completed',
+                text: `Post shared ${results.successRates.length} times. Success rate: ${((results.successRates.filter(Boolean).length) * 100).toFixed(2)}%`,
+                icon: 'success',
+                confirmButtonColor: '#ff1744',
+            });
+        });
+
+        async function startSharing(data) {
             try {
-                const response = await fetch(`api/session/start`, {
+                const response = await fetch('/api/submit', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ authData, postLink, amount, delay }),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
                 });
-
-                if (!response.ok) {
-                    throw new Error('Failed to start session');
-                }
-
-                const data = await response.json();
-                const session = {
-                    id: data.sessionId,
-                    status: 'running',
-                    successRates: [],
-                    totalAttempts: 0,
-                    amount,
-                    delay,
-                };
-                sessions.push(session);
-                updateSessionList();
-                addLog(`New session started: ${data.sessionId}`);
-            } catch (error) {
-                console.error('Error starting session:', error);
+                return await response.json();
+            } catch (err) {
                 Swal.fire({
                     title: 'Error!',
-                    text: 'Failed to start session. Please try again.',
+                    text: 'An error occurred while processing your request.',
                     icon: 'error',
                     confirmButtonColor: '#ff1744',
                 });
             }
         }
-
-        function updateSessionList() {
-            sessionList.innerHTML = '';
-        }
-
-        function updateActiveSessionsList() {
-            activeSessionsList.innerHTML = '';
-            sessions.forEach(session => {
-                if (session.status === 'running' || session.status === 'paused') {
-                    const sessionItem = document.createElement('div');
-                    sessionItem.className = 'session-item';
-                    sessionItem.innerHTML = `
-                        <h3>Session ${session.id}</h3>
-                        <p>Status: ${session.status}</p>
-                        <p>Progress: ${session.totalAttempts}/${session.amount}</p>
-                        <p>Success Rate: ${((session.successRates.filter(Boolean).length / session.totalAttempts) * 100).toFixed(2)}%</p>
-                        <div class="session-menu">
-                            <i class="fas fa-ellipsis-v"></i>
-                            <div class="session-menu-content">
-                                <button class="start-session" data-id="${session.id}" ${session.status === 'running' ? 'disabled' : ''}>Start</button>
-                                <button class="pause-session" data-id="${session.id}" ${session.status !== 'running' ? 'disabled' : ''}>Pause</button>
-                                <button class="stop-session" data-id="${session.id}">Stop</button>
-                            </div>
-                        </div>
-                    `;
-                    activeSessionsList.appendChild(sessionItem);
-                }
-            });
-
-            document.querySelectorAll('.session-menu').forEach(menu => {
-                menu.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    this.querySelector('.session-menu-content').style.display = 'block';
-                });
-            });
-
-            document.addEventListener('click', function() {
-                document.querySelectorAll('.session-menu-content').forEach(menu => {
-                    menu.style.display = 'none';
-                });
-            });
-
-            document.querySelectorAll('.start-session, .pause-session, .stop-session').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const action = this.className.split('-')[0];
-                    const sessionId = this.dataset.id;
-                    if (action === 'start') startSession(sessionId);
-                    else if (action === 'pause') pauseSession(sessionId);
-                    else if (action === 'stop') stopSession(sessionId);
-                });
-            });
-        }
-
-        async function startSession(sessionId) {
-            try {
-                const response = await fetch(`api/session/${sessionId}/resume`, {
-                    method: 'POST',
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to resume session');
-                }
-
-                const session = sessions.find(s => s.id === sessionId);
-                if (session) {
-                    session.status = 'running';
-                    updateSessionList();
-                    updateActiveSessionsList();
-                    addLog(`Session ${sessionId} resumed`);
-                }
-            } catch (error) {
-                console.error('Error resuming session:', error);
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to resume session. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: '#ff1744',
-                });
-            }
-        }
-
-        async function pauseSession(sessionId) {
-            try {
-                const response = await fetch(`api/session/${sessionId}/pause`, {
-                    method: 'POST',
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to pause session');
-                }
-
-                const session = sessions.find(s => s.id === sessionId);
-                if (session) {
-                    session.status = 'paused';
-                    updateSessionList();
-                    updateActiveSessionsList();
-                    addLog(`Session ${sessionId} paused`);
-                }
-            } catch (error) {
-                console.error('Error pausing session:', error);
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to pause session. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: '#ff1744',
-                });
-            }
-        }
-
-        async function stopSession(sessionId) {
-            try {
-                const response = await fetch(`api/session/${sessionId}/stop`, {
-                    method: 'POST',
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to stop session');
-                }
-
-                const session = sessions.find(s => s.id === sessionId);
-                if (session) {
-                    session.status = 'stopped';
-                    updateSessionList();
-                    updateActiveSessionsList();
-                    addLog(`Session ${sessionId} stopped`);
-                }
-            } catch (error) {
-                console.error('Error stopping session:', error);
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Failed to stop session. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: '#ff1744',
-                });
-            }
-        }
-
-        async function updateSessionStatus(sessionId) {
-            try {
-                const response = await fetch(`api/session/${sessionId}/status`);
-
-                if (!response.ok) {
-                    throw new Error('Failed to get session status');
-                }
-
-                const data = await response.json();
-                const session = sessions.find(s => s.id === sessionId);
-                if (session) {
-                    session.status = data.status;
-                    session.successRates = data.successRates;
-                    session.totalAttempts = data.totalAttempts;
-                    updateSessionList();
-                    updateActiveSessionsList();
-                    updateStatistics();
-                }
-            } catch (error) {
-                console.error('Error updating session status:', error);
-            }
-        }
-
-        function updateStatistics() {
-            updateSuccessRateChart();
-            updateLineChart();
-            updateSessionInfo();
-            newDataIndicator.style.display = 'inline';
-        }
-
-        let successRateChart, lineChart;
-
-        function updateSuccessRateChart() {
-            const ctx = document.getElementById('successRateChart').getContext('2d');
-            if (!successRateChart) {
-                successRateChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: []
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Success Rate (%)'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            successRateChart.data.labels = Array.from({length: Math.max(...sessions.map(s => s.totalAttempts))}, (_, i) => `Attempt ${i + 1}`);
-            successRateChart.data.datasets = sessions.map((session, index) => ({
-                label: `Session ${session.id}`,
-                data: session.successRates.map((_, i) => ((session.successRates.slice(0, i + 1).filter(Boolean).length / (i + 1)) * 100).toFixed(2)),
-                borderColor: `hsl(${index * 137.5 % 360}, 70%, 50%)`,
-                tension: 0.1
-            }));
-            successRateChart.update();
-        }
-
-        function updateLineChart() {
-            const ctx = document.getElementById('lineChart').getContext('2d');
-            if (!lineChart) {
-                lineChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [{
-                            label: 'Overall Success Rate',
-                            data: [],
-                            borderColor: 'rgba(255, 23, 68, 1)',
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Success Rate (%)'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            const overallSuccessRates = sessions.map((_, index) => {
-                const sessionsUpToIndex = sessions.slice(0, index + 1);
-                const totalSuccess = sessionsUpToIndex.reduce((sum, session) => sum + session.successRates.filter(Boolean).length, 0);
-                const totalAttempts = sessionsUpToIndex.reduce((sum, session) => sum + session.totalAttempts, 0);
-                return totalAttempts > 0 ? ((totalSuccess / totalAttempts) * 100).toFixed(2) : 0;
-            });
-
-            lineChart.data.labels = sessions.map((_, index) => `Session ${index + 1}`);
-            lineChart.data.datasets[0].data = overallSuccessRates;
-            lineChart.update();
-        }
-
-        function updateSessionInfo() {
-            const sessionInfo = document.getElementById('sessionInfo');
-            const totalSessions = sessions.length;
-            const activeSessions = sessions.filter(s => s.status === 'running').length;
-            const overallSuccessRate = calculateOverallSuccessRate();
-
-            sessionInfo.innerHTML = `
-                <h2>Session Information</h2>
-                <p>Total Sessions: ${totalSessions}</p>
-                <p>Active Sessions: ${activeSessions}</p>
-                <p>Overall Success Rate: ${overallSuccessRate}%</p>
-            `;
-        }
-
-        function calculateOverallSuccessRate() {
-            const totalSuccess = sessions.reduce((sum, session) => sum + session.successRates.filter(Boolean).length, 0);
-            const totalAttempts = sessions.reduce((sum, session) => sum + session.totalAttempts, 0);
-            return totalAttempts > 0 ? ((totalSuccess / totalAttempts) * 100).toFixed(2) : 0;
-        }
-        
-        document.getElementById('startNewSession').addEventListener('click', startNewSession);
-
-        document.getElementById('homeLink').addEventListener('click', () => {
-        	showPage('mainPage');
-        });
-        
-        document.getElementById('statsLink').addEventListener('click', () => {
-            showPage('statisticsPage');
-            updateStatistics();
-        });
-        document.getElementById('sessionsLink').addEventListener('click', () => {
-            showPage('sessionsPage');
-            updateActiveSessionsList();
-        });
-        document.getElementById('logsLink').addEventListener('click', () => {
-            showPage('logsPage');
-            newLogsIndicator.style.display = 'none';
-        });
-
-        // Periodically update session statuses
-        setInterval(() => {
-            sessions.forEach(session => {
-                if (session.status === 'running') {
-                    updateSessionStatus(session.id);
-                }
-            });
-        }, 5000); // Update every 5 seconds
     </script>
 </body>
-    </html>
+</html>
