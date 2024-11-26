@@ -16,7 +16,7 @@
             overflow-x: hidden;
         }
         .container {
-        	display: flex;
+            display: flex;
             flex-direction: column;
             justify-content: center;
             height: 100vh;
@@ -50,16 +50,48 @@
             border: none;
             transition: background-color 0.3s ease;
         }
-        .btn-primary:hover {
+        .btn-primary:disabled {
+            background-color: #ff6f80;
+        }
+        .btn-primary:hover:not(:disabled) {
             background-color: #ff4d67;
         }
-        .nav-icon {
+        #logs {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #343a40;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        #logs .log-item {
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            color: white;
+        }
+        #logs .log-item.error {
+            background-color: #d9534f;
+        }
+        #logs .log-item.success {
+            background-color: #5bc0de;
+        }
+        #logs .log-item.info {
+            background-color: #f0ad4e;
+        }
+        .nav-icons {
             position: fixed;
             top: 20px;
             right: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        .nav-icon {
             font-size: 24px;
             color: #ff1744;
             text-decoration: none;
+            position: relative;
         }
         .nav-icon .fa-circle {
             position: absolute;
@@ -76,6 +108,23 @@
             color: #ff1744;
             text-decoration: none;
         }
+        #logsPage {
+            display: none;
+        }
+        #logsPage .container {
+            max-width: 800px;
+        }
+        #logContainer {
+            background-color: #1a1a1a;
+            border: 2px solid #ff1744;
+            border-radius: 8px;
+            color: #ff1744;
+            height: 80vh;
+            overflow-y: auto;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: 'Orbitron', sans-serif;
+        }
     </style>
 </head>
 <body>
@@ -85,29 +134,67 @@
             <form id="shareForm">
                 <div class="mb-3">
                     <label for="cookie" class="form-label">Cookies</label>
-                    <textarea class="form-control" id="cookie" rows="2" ></textarea>
+                    <textarea class="form-control" id="cookie" rows="2"></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="postLink" class="form-label">Post Link</label>
-                    <input type="url" class="form-control" id="postLink" >
+                    <input type="url" class="form-control" id="postLink">
                 </div>
                 <div class="mb-3">
                     <label for="amount" class="form-label">Amount</label>
-                    <input type="number" class="form-control" id="amount" min="1" >
+                    <input type="number" class="form-control" id="amount" min="1">
                 </div>
                 <div class="mb-3">
-                    <label for="interval" class="form-label">Interval</label>
-                    <input type="number" class="form-control" id="interval" min="1" >
+                    <label for="interval" class="form-label">Interval (seconds)</label>
+                    <input type="number" class="form-control" id="interval" min="1">
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Start Sharing</button>
             </form>
         </div>
     </div>
+    <div class="nav-icons">
+        <a href="#" class="nav-icon" id="logsLink">
+            <i class="fas fa-list"></i>
+            <i class="fas fa-circle" id="newLogsIndicator" style="display: none;"></i>
+        </a>
+    </div>
+    
+    <div id="logsPage">
+        <div class="container">
+            <h1>Logs</h1>
+            <div id="logContainer"></div>
+        </div>
+        <a href="#" class="back-icon" id="backToMainFromLogs">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const mainPage = document.getElementById('mainPage');
+        const logsPage = document.getElementById('logsPage');
+        const logsLink = document.getElementById('logsLink');
+        const backToMainFromLogs = document.getElementById('backToMainFromLogs');
+        const logContainer = document.getElementById('logContainer');
+        const newLogsIndicator = document.getElementById('newLogsIndicator');
+        let hasNewLogs = false;
+        const maxLogs = 50;
+
+        logsLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            mainPage.style.display = 'none';
+            logsLink.style.display = 'none';
+            logsPage.style.display = 'block';
+            newLogsIndicator.style.display = 'none';
+            hasNewLogs = false;
+        });
+
+        backToMainFromLogs.addEventListener('click', (e) => {
+            e.preventDefault();
+            logsPage.style.display = 'none';
+            mainPage.style.display = 'block';
+            logsLink.style.display = 'block';
+        });
 
         document.getElementById('shareForm').addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -116,61 +203,131 @@
             const postLink = document.getElementById('postLink').value.trim();
             const amount = parseInt(document.getElementById('amount').value.trim(), 10);
             const interval = parseInt(document.getElementById('interval').value.trim(), 10);
-
+            const startButton = document.querySelector('button[type="submit"]');
+            
             if (!cookie || !postLink || !amount || !interval) {
                 Swal.fire({
-                    title: 'Error!',
+                    title: 'Oops!',
                     text: 'Please fill in all fields.',
                     icon: 'error',
                     confirmButtonColor: '#ff1744',
                 });
                 return;
             }
-            
-            const processingMessages = [
-			  "Sit tight while we process your request.",
-			  "Please wait, we're working on it.",
-			  "Processing... this might take a moment.",
-			  "We're on it! Please be patient.",
-			  "Your request is being processed.",
-			  "Processing your request... please stand by."
-			];
-			
-			const randomMsg = processingMessages[Math.floor(Math.random() * processingMessages.length)];
 
-            Swal.fire({
-                title: 'FS Started',
-                text: randomMsg,
-                icon: 'info',
-                confirmButtonColor: '#ff1744',
-            });
-
-            const results = await startSharing({ cookie, postLink, amount, interval });
-            Swal.fire({
-                title: 'FS Completed',
-                text: `Post shared ${results.successRates.length} times. Success rate: ${((results.successRates.filter(Boolean).length) * 100).toFixed(2)}%`,
-                icon: 'success',
-                confirmButtonColor: '#ff1744',
-            });
-        });
-
-        async function startSharing(data) {
-            try {
-                const response = await fetch('/api/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
-                return await response.json();
-            } catch (err) {
+            if (!cookie.includes('c_user=')) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while processing your request.',
+                    title: 'Invalid Cookie!',
+                    text: 'The cookie must contain a "c_user" key.',
                     icon: 'error',
                     confirmButtonColor: '#ff1744',
                 });
+                return;
             }
+
+            startButton.disabled = true;
+
+            try {
+                addLog('info', 'Initialize');
+                addLog('info', 'Getting token from cookies');
+                addLog('info', 'Checking cookie validity');
+                
+                const isAlive = await isCookieAlive(cookie);
+                if (!isAlive) {
+                    addLog('error', 'Cookie is dead or expired');
+                    throw new Error('Cookie is dead or expired');
+                }
+                
+                addLog('success', 'Cookie is alive');
+                addLog('info', 'Start sharing...');
+                
+                let successCount = 0;
+                for (let i = 0; i < amount; i++) {
+                    const success = await sharePost({ cookie, postLink });
+                    if (success) {
+                        successCount++;
+                        addLog('success', `[${i + 1}] ==> Success`);
+                    } else {
+                        addLog('error', `[${i + 1}] ==> Failure`);
+                    }
+                    if (i < amount - 1) {
+                        await new Promise(resolve => setTimeout(resolve, interval * 1000));
+                    }
+                }
+
+                addLog('success', `Fshare finished with ${successCount} success out of ${amount}`);
+                Swal.fire({
+                    title: 'Success!',
+                    text: `FShare Finished: ${successCount} successful shares out of ${amount}`,
+                    icon: 'success',
+                    confirmButtonColor: '#ff1744',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                });
+
+            } catch (error) {
+                addLog('error', `Error occurred: ${error.message}`);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while sharing the post.',
+                    icon: 'error',
+                    confirmButtonColor: '#ff1744',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                });
+            }
+
+            startButton.disabled = false;
+        });
+
+        async function sharePost(data) {
+            const response = await fetch('/api/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            return response.ok;
         }
+        
+        async function isCookieAlive(cookie) {
+            const response = await fetch('/api/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cookie }),
+            });
+            return response.ok;
+        }
+
+        function addLog(type, message) {
+            if (logContainer.children.length >= maxLogs) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+            
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+
+            const logItem = document.createElement('div');
+            logItem.classList.add('log-item', type);
+            logItem.innerHTML = `${timestamp}   | ${message}`;
+            logContainer.appendChild(logItem);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            hasNewLogs = true;
+            newLogsIndicator.style.display = hasNewLogs ? 'block' : 'none';
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                Swal.fire({
+                    title: 'Notice',
+                    text: 'ZyteFS is a free tool created for boosting shares. If someone sells to you, you have been scammed.',
+                    icon: 'info',
+                    confirmButtonColor: '#ff1744',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                });
+            }, 1000);
+        });
     </script>
 </body>
 </html>
