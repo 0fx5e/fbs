@@ -1,18 +1,26 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const path = require('path');
-const cors = require('cors');
-const axios = require('axios');
+const express = require("express");
+const bodyParser = require("body-parser");
+const path = require("path");
+const cors = require("cors");
+const axios = require("axios");
 
 const PORT = process.env.PORT || 1001;
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// Parse cookie JSON to cookie string
+function parseCookiesFromJSON(cookieArray) {
+  return cookieArray
+    .map(cookie => `${cookie.key}=${cookie.value}`)
+    .join("; ");
+}
+
+// Fetch Facebook Token
 async function getFacebookToken(cookie) {
   const headers = {
     "authority": "business.facebook.com",
@@ -32,10 +40,7 @@ async function getFacebookToken(cookie) {
   };
 
   try {
-    const response = await axios.get(
-      "https://business.facebook.com/content_management",
-      { headers }
-    );
+    const response = await axios.get("https://business.facebook.com/content_management", { headers });
     const token = response.data.split("EAAG")[1].split('","')[0];
     return `${cookie}|EAAG${token}`;
   } catch (error) {
@@ -44,6 +49,7 @@ async function getFacebookToken(cookie) {
   }
 }
 
+// Check Cookie Validity
 async function isCookieAlive(cookie) {
   const headers = {
     "authority": "business.facebook.com",
@@ -63,10 +69,7 @@ async function isCookieAlive(cookie) {
   };
 
   try {
-    const response = await axios.get(
-      "https://business.facebook.com/content_management",
-      { headers }
-    );
+    const response = await axios.get("https://business.facebook.com/content_management", { headers });
     return response.status === 200;
   } catch (error) {
     console.error("Cookie validation failed:", error.message);
@@ -74,87 +77,114 @@ async function isCookieAlive(cookie) {
   }
 }
 
+// Get Post ID
 async function getPostId(postLink) {
-    try {
-        const response = await axios.post('https://id.traodoisub.com/api.php', new URLSearchParams({ link: postLink }));
-        return response.data.id || null;
-    } catch (error) {
-        console.error('Error getting post ID:', error);
-        return null;
-    }
+  try {
+    const response = await axios.post(
+      "https://id.traodoisub.com/api.php",
+      new URLSearchParams({ link: postLink })
+    );
+    return response.data.id || null;
+  } catch (error) {
+    console.error("Error getting post ID:", error.message);
+    return null;
+  }
 }
 
-async function performShare(cookie, token, postId) {
+// Perform Share with Retries
+async function performShareWithRetries(cookie, token, postId, retries = 3) {
   const headers = {
     accept: "*/*",
-    "accept-encoding": "gzip, deflate",
-    connection: "keep-alive",
-    "content-length": "0",
-    cookie: cookie,
+    cookie,
     host: "graph.facebook.com",
   };
 
-  try {
-    const response = await axios.post(
-      `https://graph.facebook.com/me/feed`,
-      null,
-      {
-        headers,
-        params: {
-          link: `https://m.facebook.com/${postId}`,
-          published: 0,
-          access_token: token,
-        },
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/me/feed`,
+        null,
+        {
+          headers,
+          params: {
+            link: `https://m.facebook.com/${postId}`,
+            published: 0,
+            access_token: token,
+          },
+        }
+      );
+      if (response.data.id) {
+        console.log(`Share successful for post ID ${postId}`);
+        return true;
       }
-    );
-
-    if (response.data.id) {
-      console.log(`Share successful for post ID ${postId}`);
-      return true;
-    } else {
-      console.error(`Error during sharing. Response:`, response.data);
-      return false;
+    } catch (error) {
+      console.error(`Share attempt ${attempt} failed: ${error.message}`);
+      if (attempt === retries) return false; // Fail after max retries
     }
-  } catch (error) {
-    console.error("Error during share:", error.message);
-    return false;
   }
 }
 
-app.post("/api/check", async (req, res) => {
-  const { cookie } = req.body;
-  const isAlive = await isCookieAlive(cookie);
-  if (!isAlive) {
-    return res.status(401).json({ error: "Invalid or expired cookie." });
-  }
-  res.status(200).json({ status: "ok" });
-});
+// Delay Utility
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 app.post("/api/submit", async (req, res) => {
-  const { cookie, postLink } = req.body;
+  const { cookie, url, amount, interval } = req.body;
 
-  if (!cookie || !postLink) {
+  if (!cookie || !url || !amount || !interval) {
     return res.status(400).json({ error: "Missing required parameters." });
   }
 
-  const facebookToken = await getFacebookToken(cookie);
+  // Normalize cookies input
+  let cookieString = "";
+
+  if (Array.isArray(cookie)) {
+    // Convert appstate/cookie JSON to a string
+    cookieString = parseCookiesFromJSON(cookie);
+  } else if (typeof cookie === "string") {
+    // Use cookie string as is
+    cookieString = cookie;
+  } else {
+    return res.status(400).json({ error: "Invalid cookie format." });
+  }
+
+  // Validate Cookie
+  const isAlive = await isCookieAlive(cookieString);
+  if (!isAlive) {
+    return res.status(401).json({ error: "Invalid or expired cookie." });
+  }
+
+  // Get Facebook Token
+  const facebookToken = await getFacebookToken(cookieString);
   if (!facebookToken) {
     return res.status(500).json({ error: "Failed to retrieve access token." });
   }
-
   const [retrievedCookie, token] = facebookToken.split("|");
 
-  const postId = await getPostId(postLink);
+  // Get Post ID
+  const postId = await getPostId(url);
   if (!postId) {
-    return res.status(400).json({ error: "Invalid post link." });
+    return res.status(400).json({ error: "Failed to retrieve post ID." });
   }
 
-  const success = await performShare(retrievedCookie, token, postId);
-  if (success) {
-    return res.status(200).json({ message: "Share successful" });
-  } else {
-    return res.status(500).json({ error: "Failed to share the post." });
-  }
+  let successCount = 0;
+
+  // Use concurrency with interval control
+  const tasks = Array.from({ length: amount }).map(async (_, i) => {
+    await delay(i * interval * 1000); // Control interval for each task
+    const success = await performShareWithRetries(retrievedCookie, token, postId);
+    if (success) successCount++;
+  });
+
+  // Wait for all tasks to complete
+  await Promise.all(tasks);
+
+  res.json({
+    message: "Sharing process completed.",
+    totalShares: amount,
+    successfulShares: successCount,
+  });
 });
 
 app.listen(PORT, () => {
