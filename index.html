@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZyteFS</title>
+    <title>FShare</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -93,11 +95,11 @@
         input {
             width: 100%;
             padding: 12px;
-            border: 1px solid #66fcf1;
+            border: 1.5px solid #66fcf1;
             border-radius: 8px;
             font-size: 16px;
             background-color: rgba(102, 252, 241, 0.1);
-            color: #ffffff;
+            color: #66fcf1;
             box-sizing: border-box;
             font-family: 'Orbitron', sans-serif;
         }
@@ -170,14 +172,26 @@
                 font-size: 20px;
             }
         }
+        
+        .ccb {
+        	color: #0b0c10;
+            border-radius: 8px;
+        }
+        
+        .icon {
+		    color: #f39c12;
+		    padding: 10px;
+		    font-size: 80px;
+		    display: inline-block;
+		}
     </style>
 </head>
 
 <body>
     <div class="navbar">
         <div class="logo">
-            <i class="fas fa-share-alt"></i>
-            <h1>Zyte Fshare</h1>
+            <i class="fas fa-share"></i>
+            <h1>FShare</h1>
         </div>
     </div>
 
@@ -186,83 +200,98 @@
         <div>
             <label for="cookie">Appstate</label>
             <textarea id="cookie" name="cookie"></textarea>
-            <div class="error" id="cookieError">This field is required</div>
+            <div class="error" id="cookieError">Don't leave this field blank.</div>
         </div>
 
         <div>
             <label for="url">Post Link</label>
             <input type="url" id="url" name="url">
-            <div class="error" id="urlError">This field is required</div>
+            <div class="error" id="urlError">Don't leave this field blank.</div>
         </div>
 
         <div>
             <label for="amount">Share Limit Count</label>
-            <input type="number" id="amount" name="amount" min="1">
-            <div class="error" id="amountError">This field is required</div>
+            <input type="number" id="amount" name="amount" value="100">
+            <div class="error" id="amountError">Don't leave this field blank.</div>
         </div>
 
         <div>
             <label for="interval">Interval (seconds)</label>
-            <input type="number" id="interval" name="interval" value="1">
-            <div class="error" id="intervalError">Interval is required</div>
+            <input type="number" id="interval" name="interval" value="3">
+            <div class="error" id="intervalError">Don't leave this field blank.</div>
         </div>
 
         <button type="submit">Submit</button>
     </form>
-
-    <div id="toast" class="toast"></div>
-
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        document.getElementById('postForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-            const data = Object.fromEntries(formData);
+    	document.addEventListener('DOMContentLoaded', () => {
+    Swal.fire({
+        html: `
+        <div>
+            <i class="fas fa-exclamation-triangle icon"></i>
+        </div>
+        <h1>Notice</h1>
+        <p>FShare is a free tool designed to help boost Facebook post shares. If you encounter anyone attempting to sell this tool, please report them directly.</p>
+    `,
+        confirmButtonColor: '#66fcf1',
+        customClass: {
+            confirmButton: 'ccb'
+        },
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+    });
+});
 
-            // Validate form
-            let isValid = true;
-            const fields = ['cookie', 'url', 'amount', 'interval'];
-            fields.forEach(field => {
-                if (!data[field]) {
-                    isValid = false;
-                    document.getElementById(`${field}Error`).style.display = 'block';
-                } else {
-                    document.getElementById(`${field}Error`).style.display = 'none';
-                }
-            });
+document.getElementById('postForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
 
-            if (!isValid) return;
-
-            fetch('api/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-                showToast(`Sharing process completed. Total shares: ${result.totalShares}, Successful shares: ${result.successfulShares}`);
-                this.reset();
-            })
-            .catch(error => {
-                showToast(error.message || 'Unknown error occurred', true);
-            });
-        });
-
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.style.display = 'block';
-            toast.style.backgroundColor = isError ? 'rgba(255, 77, 77, 0.9)' : 'rgba(102, 252, 241, 0.9)';
-            toast.style.color = isError ? '#ffffff' : '#0b0c10';
-
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 5000);
+    // Validate form
+    let isValid = true;
+    const fields = ['cookie', 'url', 'amount', 'interval'];
+    fields.forEach(field => {
+        if (!data[field]) {
+            isValid = false;
+            document.getElementById(`${field}Error`).style.display = 'block';
+        } else {
+            document.getElementById(`${field}Error`).style.display = 'none';
         }
+    });
+
+    if (!isValid) return;
+
+    fetch('api/submit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        Swal.fire({
+            title: 'Success!',
+            text: `FShare completed successfully with ${result.successfulShares} shares out of ${data.amount}.`,
+            icon: 'success',
+            confirmButtonColor: '#66fcf1'
+        });
+        this.reset();
+    })
+    .catch(error => {
+        Swal.fire({
+            title: 'Oops!',
+            text: error.message || 'Unknown error occurred',
+            icon: 'error',
+            confirmButtonColor: '#66fcf1'
+        });
+    });
+});
     </script>
 </body>
-</html>
+    </html>
