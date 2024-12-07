@@ -15,7 +15,7 @@ const SESSION_FILE = 'sessions.json';
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'index.html')));
 
 // Initialize sessions storage
 async function initializeSessionStore() {
