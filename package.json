@@ -1,6 +1,7 @@
 {
   "name": "Fzapify",
   "version": "1.3.4",
+  "type": "module",
   "description": "A simple share booster for Facebook posts.",
   "main": "server.js",
   "scripts": {
