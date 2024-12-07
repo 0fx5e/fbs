@@ -1,17 +1,59 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const path = require("path");
-const cors = require("cors");
-const axios = require("axios");
+const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const cors = require('cors');
+const axios = require('axios');
+const fs = require( 'fs/promises');
 
-const PORT = process.env.PORT || 1001;
+const __dirname = path.dirname(__filename);
+
+const PORT = process.env.PORT || 5000;
 const app = express();
+const SESSION_FILE = 'sessions.json';
+
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+// Initialize sessions storage
+async function initializeSessionStore() {
+  try {
+    await fs.access(SESSION_FILE);
+  } catch {
+    await fs.writeFile(SESSION_FILE, JSON.stringify({}));
+  }
+}
+
+// Read sessions from file
+async function readSessions() {
+  try {
+    const data = await fs.readFile(SESSION_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading sessions:', error);
+    return {};
+  }
+}
+
+// Write sessions to file
+async function writeSessions(sessions) {
+  try {
+    await fs.writeFile(SESSION_FILE, JSON.stringify(sessions, null, 2));
+  } catch (error) {
+    console.error('Error writing sessions:', error);
+  }
+}
+
+// Save sharing progress
+async function saveProgress(sessionId, progress) {
+  const sessions = await readSessions();
+  sessions[sessionId] = {
+    ...sessions[sessionId],
+    ...progress,
+    lastUpdated: new Date().toISOString()
+  };
+  await writeSessions(sessions);
+}
 
 // Parse cookie JSON to cookie string
 function parseCookiesFromJSON(cookieArray) {
@@ -91,102 +133,115 @@ async function getPostId(postLink) {
   }
 }
 
-// Perform Share with Retries
-async function performShareWithRetries(cookie, token, postId, retries = 3) {
-  const headers = {
-    accept: "*/*",
-    cookie,
-    host: "graph.facebook.com",
-  };
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await axios.post(
-        `https://graph.facebook.com/me/feed`,
-        null,
-        {
-          headers,
-          params: {
-            link: `https://m.facebook.com/${postId}`,
-            published: 0,
-            access_token: token,
-          },
-        }
-      );
-      if (response.data.id) {
-        console.log(`Share successful for post ID ${postId}`);
-        return true;
-      }
-    } catch (error) {
-      console.error(`Share attempt ${attempt} failed: ${error.message}`);
-      if (attempt === retries) return false; // Fail after max retries
-    }
-  }
-}
-
-// Delay Utility
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-app.post("/api/submit", async (req, res) => {
+app.post("/submit", async (req, res) => {
   const { cookie, url, amount, interval } = req.body;
+  const sessionId = Date.now().toString();
 
   if (!cookie || !url || !amount || !interval) {
-    return res.status(400).json({ error: "Missing required parameters." });
+    return res.status(400).json({ detail: "Missing required parameters." });
   }
 
-  // Normalize cookies input
-  let cookieString = "";
+  // Initialize session
+  await saveProgress(sessionId, {
+    status: 'started',
+    totalShares: parseInt(amount),
+    completedShares: 0,
+    url,
+    interval
+  });
 
+  let cookieString = "";
   if (Array.isArray(cookie)) {
-    // Convert appstate/cookie JSON to a string
-    cookieString = parseCookiesFromJSON(cookie);
+  	cookieString = parseCookiesFromJSON(cookie);
   } else if (typeof cookie === "string") {
-    // Use cookie string as is
-    cookieString = cookie;
+        const potentialJSON = JSON.parse(cookie);
+	    if (Array.isArray(potentialJSON) && potentialJSON.every(c => c.key && c.value)) {
+	        cookieString = parseCookiesFromJSON(potentialJSON);
+	    } else {
+	       cookieString = cookie;
+	    }
   } else {
     return res.status(400).json({ error: "Invalid cookie format." });
   }
 
-  // Validate Cookie
-  const isAlive = await isCookieAlive(cookieString);
-  if (!isAlive) {
-    return res.status(401).json({ error: "Invalid or expired cookie." });
-  }
+  res.json({ session_id: sessionId });
 
-  // Get Facebook Token
-  const facebookToken = await getFacebookToken(cookieString);
-  if (!facebookToken) {
-    return res.status(500).json({ error: "Failed to retrieve access token." });
-  }
-  const [retrievedCookie, token] = facebookToken.split("|");
-
-  // Get Post ID
-  const postId = await getPostId(url);
-  if (!postId) {
-    return res.status(400).json({ error: "Failed to retrieve post ID." });
-  }
-
-  let successCount = 0;
-
-  // Use concurrency with interval control
-  const tasks = Array.from({ length: amount }).map(async (_, i) => {
-    await delay(i * interval * 1000); // Control interval for each task
-    const success = await performShareWithRetries(retrievedCookie, token, postId);
-    if (success) successCount++;
-  });
-
-  // Wait for all tasks to complete
-  await Promise.all(tasks);
-
-  res.json({
-    message: "Sharing process completed.",
-    totalShares: amount,
-    successfulShares: successCount,
-  });
+  // Start the sharing process in the background
+  shareInBackground(sessionId, cookieString, url, parseInt(amount), parseFloat(interval));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+async function shareInBackground(sessionId, cookieString, url, amount, interval) {
+  try {
+    const isAlive = await isCookieAlive(cookieString);
+    if (!isAlive) {
+      await saveProgress(sessionId, { status: 'failed', error: 'Invalid cookie' });
+      return;
+    }
+
+    const facebookToken = await getFacebookToken(cookieString);
+    if (!facebookToken) {
+      await saveProgress(sessionId, { status: 'failed', error: 'Token retrieval failed' });
+      return;
+    }
+    const [retrievedCookie, token] = facebookToken.split("|");
+
+    const postId = await getPostId(url);
+    if (!postId) {
+      await saveProgress(sessionId, { status: 'failed', error: 'Invalid post ID' });
+      return;
+    }
+
+    let successCount = 0;
+
+    for (let i = 0; i < amount; i++) {
+      await delay(interval * 1000);
+      const success = await performShareWithRetries(retrievedCookie, token, postId);
+      if (success) {
+        successCount++;
+        await saveProgress(sessionId, {
+          status: 'in_progress',
+          completedShares: successCount
+        });
+      }
+    }
+
+    await saveProgress(sessionId, {
+      status: 'completed',
+      completedShares: successCount
+    });
+  } catch (error) {
+    await saveProgress(sessionId, {
+      status: 'failed',
+      error: error.message
+    });
+  }
+}
+
+app.get("/total-sessions", async (req, res) => {
+  try {
+    const sessions = await readSessions();
+    const activeSessions = Object.entries(sessions)
+      .filter(([_, session]) => session.status === 'in_progress' || session.status === 'started')
+      .map(([id, session]) => ({
+        id: id,
+        session: id.slice(-4),
+        url: session.url,
+        count: session.completedShares,
+        target: session.totalShares
+      }));
+    res.json(activeSessions);
+  } catch (error) {
+    res.status(500).json({ detail: "Error fetching sessions" });
+  }
+});
+
+// Initialize session store and start server
+initializeSessionStore().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}.`);
+  });
 });
