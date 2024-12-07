@@ -1,13 +1,13 @@
 {
-  "name": "ZyteFS",
-  "version": "1.0.3",
+  "name": "Fzapify",
+  "version": "1.3.4",
   "description": "A simple share booster for Facebook posts.",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "ZyteFS",
+    "Fzapify",
     "Facebook",
     "FBS",
     "Zyte"
